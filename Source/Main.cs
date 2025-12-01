@@ -1,23 +1,26 @@
 using Brutal.Logging;
 using KSA;
-using KSA.Rendering.Water.Data;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 
 namespace Kitten_Patcher
 {
   [StarMapMod]
   public class MainKittenPatcher
   {
-    public var currentCSystem;
-    public List<Astronomical> astronomicalList;
-
-    [StarMapAllModsLoaded]
-    public void OnFullyLoaded()
+    public XDocument patchXML; 
+    [StarMapBeforeMain]
+    public void LoadAndPatch()
     {
-      currentCSystem = KSA.Universe.CelestialSystem;
-      astronomicalList = currentCSystem.All.GetList();
-      Console.WriteLine(astronomicalList[0].Id);
-      Astronomical(currentCSystem, astronomicalList[0].bodyTemplate, "(Patched)"+astronomicalList[0].Id);
+      patchXML = XDocument.Load("C:\\Program Files\\Kitten Space Agency\\Content\\Patching.xml");
+      if(patchXML.Root.Name.ToString() == "KittenPatch")
+      {
+        e;
+      }
+      else
+      {
+        Console.WriteLine("Root node in Patching.xml is invalid! ("+patchXML.Root.Name.ToString()+")");
+      }
     }
   }
 }
