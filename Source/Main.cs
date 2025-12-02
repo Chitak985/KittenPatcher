@@ -9,62 +9,72 @@ namespace Kitten_Patcher
     [StarMapMod]
     public class MainKittenPatcher
     {
-        public XDocument patchXML = new XDocument();
         [StarMapBeforeMain]
         public void LoadAndPatch()
         {
-            patchXML = XDocument.Load("C:\\Program Files\\Kitten Space Agency\\Content\\Patching.xml");
-            if(patchXML == null)
+            // Load all XML files
+            List<XDocument> xmls = new List<XDocument>;
+            foreach (string xmlFile in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "*.xml", SearchOption.AllDirectories))
             {
-                Console.WriteLine("No Patching.xml file!");
-                return;
+                xmls.Add(XDocument.Load(xmlFile));
             }
-            if(patchXML.Root == null)
+
+            // Load all XML files to load patches from
+            foreach (string patchFile in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "Patching.xml", SearchOption.AllDirectories))
             {
-                Console.WriteLine("Patching.xml has no root node!");
-                return;
-            }
-            if (patchXML.Root.Name.ToString() == "KittenPatch")
-            {
-                foreach (var patchItem in patchXML.Root.Ancestors("PatchItem"))
+                XDocument patchXML = XDocument.Load(patchFile);  // Load file as an XML document
+                if(patchXML == null)
                 {
-                    if(patchItem == null)
+                    Console.WriteLine("Something is VERY wrong!");  // Realisticlly shouldn't happen
+                    continue;
+                }
+                if(patchXML.Root == null)
+                {
+                    Console.WriteLine("Patching.xml has no root node!");  // Idk how would happen but whatever
+                    continue;
+                }
+                if (patchXML.Root.Name.ToString() == "Patch")  // Loads up the root node
+                {
+                    foreach (var patchItem in patchXML.Root.Ancestors("PatchItem"))
                     {
-                        Console.WriteLine("PatchItem is null!");
-                        continue;
-                    }
-                    foreach (var patchFile in patchItem.Ancestors("PatchFile"))
-                    {
-                        if(patchFile == null)
+                        if(patchItem == null)
                         {
-                            Console.WriteLine("PatchFile is null!");
+                            Console.WriteLine("PatchItem is null!");
                             continue;
                         }
-                        if(patchFile.Attribute("File") == null)
+                        foreach (var patchFile in patchItem.Ancestors("PatchFile"))
                         {
-                            Console.WriteLine("PatchFile has no File attribute!");
-                            continue;
-                        }
-                        if (File.Exists(Path.Combine("C:\\Program Files\\Kitten Space Agency\\Content\\", patchFile.Attribute("File").Value)))
-                        {
-                            if (patchFile.Attribute("PatchDelete") != null)
+                            if(patchFile == null)
                             {
-                                foreach (var patchDelete in patchFile.Ancestors("PatchDelete"))
+                                Console.WriteLine("PatchFile is null!");
+                                continue;
+                            }
+                            if(patchFile.Attribute("File") == null)
+                            {
+                                Console.WriteLine("PatchFile has no File attribute!");
+                                continue;
+                            }
+                            if (File.Exists(Path.Combine("C:\\Program Files\\Kitten Space Agency\\Content\\", patchFile.Attribute("File").Value)))
+                            {
+                                if (patchFile.Attribute("PatchDelete") != null)
                                 {
-                                    return;  // Delete stuff here
+                                    foreach (var patchDelete in patchFile.Ancestors("PatchDelete"))
+                                    {
+                                        return;  // Delete stuff here
+                                    }
                                 }
                             }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Patch file not found: " + patchFile.Attribute("File").Value);
+                            else
+                            {
+                                Console.WriteLine("Patch file not found: " + patchFile.Attribute("File").Value);
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                Console.WriteLine("Root node in Patching.xml is invalid! (" + patchXML.Root.Name.ToString() + ")");
+                else
+                {
+                    Console.WriteLine("Root node in Patching.xml is invalid! (" + patchXML.Root.Name.ToString() + ")");
+                }
             }
         }
     }
