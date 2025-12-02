@@ -13,22 +13,22 @@ namespace Kitten_Patcher
         public void LoadAndPatch()
         {
             // Load all XML files
-            List<XDocument> xmls = new List<XDocument>;
+            List<XDocument> xmls = new List<XDocument>();
             foreach (string xmlFile in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "*.xml", SearchOption.AllDirectories))
             {
                 xmls.Add(XDocument.Load(xmlFile));
             }
 
             // Load all XML files to load patches from
-            foreach (string patchFile in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "Patching.xml", SearchOption.AllDirectories))
+            foreach (string patchPath in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "Patching.xml", SearchOption.AllDirectories))
             {
-                XDocument patchXML = XDocument.Load(patchFile);  // Load file as an XML document
-                if(patchXML == null)
+                XDocument patchXML = XDocument.Load(patchPath);  // Load file as an XML document
+                if (patchXML == null)
                 {
                     Console.WriteLine("Something is VERY wrong!");  // Realisticlly shouldn't happen
                     continue;
                 }
-                if(patchXML.Root == null)
+                if (patchXML.Root == null)
                 {
                     Console.WriteLine("Patching.xml has no root node!");  // Idk how would happen but whatever
                     continue;
@@ -37,19 +37,19 @@ namespace Kitten_Patcher
                 {
                     foreach (var patchItem in patchXML.Root.Ancestors("PatchItem"))
                     {
-                        if(patchItem == null)
+                        if (patchItem == null)
                         {
                             Console.WriteLine("PatchItem is null!");
                             continue;
                         }
-                        foreach (var patchFile in patchItem.Ancestors("PatchFile"))
+                        foreach (var patchFile in patchItem.Descendants("PatchFile"))
                         {
-                            if(patchFile == null)
+                            if (patchFile == null)
                             {
                                 Console.WriteLine("PatchFile is null!");
                                 continue;
                             }
-                            if(patchFile.Attribute("File") == null)
+                            if (patchFile.Attribute("File") == null)
                             {
                                 Console.WriteLine("PatchFile has no File attribute!");
                                 continue;
@@ -58,9 +58,12 @@ namespace Kitten_Patcher
                             {
                                 if (patchFile.Attribute("PatchDelete") != null)
                                 {
-                                    foreach (var patchDelete in patchFile.Ancestors("PatchDelete"))
+                                    foreach (var patchDelete in patchFile.Descendants("PatchDelete"))
                                     {
-                                        return;  // Delete stuff here
+                                        foreach (var xmlFile in xmls)
+                                        {
+                                            return;  // Implement patch delete logic here for each file
+                                        }
                                     }
                                 }
                             }
@@ -75,6 +78,11 @@ namespace Kitten_Patcher
                 {
                     Console.WriteLine("Root node in Patching.xml is invalid! (" + patchXML.Root.Name.ToString() + ")");
                 }
+            }
+
+            foreach (var xml in xmls)
+            {
+                return;  // Write patched XMLs back to disk here
             }
         }
     }
