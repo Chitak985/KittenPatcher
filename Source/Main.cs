@@ -4,23 +4,24 @@ using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using StarMap.API;
 
-namespace Kitten_Patcher
+namespace KittenPatcher
 {
     [StarMapMod]
-    public class MainKittenPatcher
+    public class KittenPatcher
     {
         [StarMapBeforeMain]
         public void LoadAndPatch()
         {
-            // Load all XML files
+            // Move and load all XML files
             List<XDocument> xmls = new List<XDocument>();
-            foreach (string xmlFile in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "*.xml", SearchOption.AllDirectories))
+            foreach (string xmlFile in Directory.GetFiles("Content\\", "*.xml", SearchOption.AllDirectories))
             {
                 xmls.Add(XDocument.Load(xmlFile));
+                return; // move files to a new directory here pls
             }
 
-            // Load all XML files to load patches from
-            foreach (string patchPath in Directory.GetFiles("C:\\Program Files\\Kitten Space Agency\\Content\\", "Patching.xml", SearchOption.AllDirectories))
+            // Load all XML files to load patches from (use cache)
+            foreach (string patchPath in Directory.GetFiles("Content\\KittenPatcher\\Cache\\", "Patching.xml", SearchOption.AllDirectories))
             {
                 XDocument patchXML = XDocument.Load(patchPath);  // Load file as an XML document
                 if (patchXML == null)
@@ -54,7 +55,7 @@ namespace Kitten_Patcher
                                 Console.WriteLine("PatchFile has no File attribute!");
                                 continue;
                             }
-                            if (File.Exists(Path.Combine("C:\\Program Files\\Kitten Space Agency\\Content\\", patchFile.Attribute("File").Value)))
+                            if (File.Exists(Path.Combine("Content\\KittenPatcher\\Cache\\", patchFile.Attribute("File").Value)))
                             {
                                 if (patchFile.Attribute("PatchDelete") != null)
                                 {
