@@ -1,9 +1,7 @@
-using Brutal.Logging;
-using KSA;
-using System.Runtime.InteropServices;
-using System.Xml.Linq;
 using StarMap.API;
-using System.ComponentModel.DataAnnotations;
+using System.Reflection;
+using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace KittenPatcher
 {
@@ -34,6 +32,7 @@ namespace KittenPatcher
     public class KittenPatcher
     {
         public KittenPatcherLogger logging =  new KittenPatcherLogger();
+        public string dllPath = Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
         [StarMapBeforeMain]
         public void LoadAndPatch()
         {
@@ -49,49 +48,26 @@ namespace KittenPatcher
             // ----- CACHE -----
 
             // Check cache
-            if (Directory.Exists("C:\\KittenPatcherCache"))
+            if (Directory.Exists("ContentKittenPatcherCache"))
             {
                 logging.Info("Cache from an old run is found, deleting it...");
-                Directory.Delete("C:\\KittenPatcherCache", true);
+                Directory.Delete("ContentKittenPatcherCache", true);
             }
             else
             {
                 logging.Info("Creating Cache folder...");
             }
-            Directory.CreateDirectory("C:\\KittenPatcherCache");
+            Directory.CreateDirectory("ContentKittenPatcherCache");
 
-            // Move EVERYTHING to Cache
-            logging.Info("Moving everything to cache...");
-            foreach (string file in Directory.GetFiles("Content\\", "*.*", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    Directory.CreateDirectory("C:\\KittenPatcherCache\\" + file.Substring(file.IndexOf("Content\\") + "Content\\".Length, file.LastIndexOf('\\')));
-                    File.Copy(file, "C:\\KittenPatcherCache\\" + file.Substring(file.IndexOf("Content\\") + "Content\\".Length), true);
-                }
-                catch
-                {
-                    logging.Info("Failed to copy " + file + " to cache, skipping...");
-                }
-            }
+            logging.Info("Creating a command line file for KittenPatcher's Initialization...");
+            StreamWriter cmdFileInit = File.CreateText("Content\\KittenPatcher\\KittenPatcherInitialization.cmd");
+            cmdFileInit.Write("@echo off\necho ----- KittenPatcher Initializer -----\necho Copying Content folder to ContentKittenPatcherCache...\nxcopy \""+dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher"))+"\" \""+dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher"))+"KittenPatcherCache\" /I /E /-Y\necho Content folder move complete. Finishing in 5 seconds...\ntimeout /t 5 /nobreak > NUL");
+            cmdFileInit.Close();
 
-            // Clear up some stuff
-            logging.Info("Cleaning up...");
-            foreach (string dirs in Directory.GetDirectories("C:\\KittenPatcherCache\\", "*", SearchOption.AllDirectories))
-            {
-                // This deletes the random empty directories my spaghetti code makes
-                try
-                {
-                    Directory.Delete(dirs);
-                }
-                catch { }
+            logging.Info("Running the file...");
+            System.Diagnostics.Process initFile = System.Diagnostics.Process.Start("Content\\KittenPatcher\\KittenPatcherInitialization.cmd");
+            initFile.WaitForExit();
 
-                // Remove the KittenPatcher directory
-                if (dirs.EndsWith("KittenPatcher"))
-                {
-                    Directory.Delete(dirs, true);
-                }
-            }
             logging.Info("Cache move finished!");
 
             // ----- PATCHING -----
@@ -142,46 +118,44 @@ namespace KittenPatcher
                                 logging.Error("PatchFile has no File attribute!");
                                 continue;
                             }
+                            XAttribute fileToPatch = patchFile.Attribute("File");
                             logging.Info("Found a <PatchFile> " + patchFile.Name.ToString() + "!");
-                            if (File.Exists(Path.Combine("Content\\", patchFile.Attribute("File").Value)))
+                            if (File.Exists(Path.Combine("Content\\", fileToPatch.Value)))
                             {
-                                logging.Info("The file <PatchFile> specifies, " + patchFile.Attribute("File").Value.ToString() + ", exists!");
+                                logging.Info("The file <PatchFile> specifies, " + fileToPatch.Value + ", exists!");
                                 foreach (var patchDelete in patchFile.Descendants("PatchDelete"))
                                 {
                                     logging.Info("Found a <PatchDelete> " + patchDelete.Name.ToString() + "!");
-                                    //bool done = false;
-                                    foreach (var xmlFile in xmls)  // this accesses all files...
+                                    XDocument xmlFile = XDocument.Load(Path.Combine("Content\\", fileToPatch.Value));
+                                    if (xmlFile.Descendants(patchDelete.Attribute("Name").Value) != null)
                                     {
-                                        if(xmlFile.Descendants(patchDelete.Attribute("Name").Value) != null)
+                                        List<XElement> nodes = [.. xmlFile.Descendants(patchDelete.Attribute("Name").Value)];                           // Obtain all nodes to remove
+                                        foreach (var node in nodes)                                                                                     // Iterate and remove them, this is now independent from Descendants
                                         {
-                                            foreach (var node in xmlFile.Descendants(patchDelete.Attribute("Name").Value))
+                                            string tmp = "";                                                                                            // Create a temporary string for formatted attributes
+                                            foreach (var att in node.Attributes())                                                                      // Iterate through all attributes
                                             {
-                                                node.Remove();
-                                                logging.Info("Deleted node " + node.Name + "!");
-                                                //if (patchDelete.Attribute("All").Value == null)
-                                                //{
-                                                //    logging.Info("Deleting of " + node.Name + " finished because [All] is not set!");
-                                                //    done = true;
-                                                //    break;
-                                                //}
-                                                //if (patchDelete.Attribute("All").Value == "false")
-                                                //{
-                                                //    logging.Info("Deleting of " + node.Name + " finished because [All] is false!");
-                                                //    done = true;
-                                                //    break;
-                                                //}
+                                                tmp += att.Name.ToString()+": "+att.Value+", ";                                                         // Add formatted attributes to the temporary string
                                             }
-                                            //if (done)
-                                            //{
-                                            //    break;
-                                            //}
+                                            logging.Info("Deleting node "+node.Name+" with attributes {"+tmp.Substring(0,tmp.Length-2)+"}!");           // Log node being deleted with its attributes
+                                            try                                                                                                         // Protect from an exception to keep the game running
+                                            {
+                                                node.Remove();                                                                                          // Remove the element
+                                                logging.Info("Node removal successful!");
+                                            }
+                                            catch (Exception ex)                                                                                        // Catch an exception if one happens
+                                            {
+                                                logging.Info("Node removal failed with exception "+ex.Message+" with stack trace "+ex.StackTrace+"!");  // Log the error so it doesn't crash the game
+                                            }
                                         }
                                     }
+                                    xmlFile.Save(Path.Combine("Content\\", fileToPatch.Value));
+                                    logging.Info("XML was patched and saved successfully!");
                                 }
                             }
                             else
                             {
-                                logging.Error("Patch file not found: " + patchFile.Attribute("File").Value);
+                                logging.Error("Patch file not found: " + fileToPatch.Value);
                             }
                         }
                     }
@@ -198,33 +172,37 @@ namespace KittenPatcher
         public void Cleanup()
         {
             logging.Info("Beggining cleanup...");
-            logging.Info("Deleting Content folder...");
-            foreach (string file in Directory.GetFiles("Content\\", "*.*", SearchOption.AllDirectories))
+            if (Directory.Exists("ContentKittenPatcherCache"))
             {
-                if (file.Contains("KittenPatcher\\"))
-                {
-                    continue;
-                }
-                try
-                {
-                    File.Delete(file);
-                }
-                catch { }
+                logging.Info("Cache is found successfully, continuing cleanup...");
             }
-            logging.Info("Restoring Content from Cache...");
-            foreach (string file in Directory.GetFiles("C:\\KittenPatcherCache\\", "*.*", SearchOption.AllDirectories))
+            else
             {
-                try
+                logging.Error("The cache folder is missing! The Content folder is now corrupted with KittenPatcher patches, if any were executed. Please send this log to the developer, Chitak985, using the KSA Modding discord server (https://discord.gg/6tZwQfCtFu). PLEASE don't send logs in the main help channel, instead use the KittenPatcher forum channel (https://discord.com/channels/1439383096813158702/1444048215170089185).");
+                return;
+            }
+
+            logging.Info("Removing directories in the Content folder...");
+            foreach (var contentFolder in Directory.GetDirectories("Content"))
+            {
+                if (!contentFolder.Contains("KittenPatcher"))
                 {
-                    File.Move(file, "Content\\" + file.Substring(file.IndexOf("C:\\KittenPatcherCache") + "C:\\KittenPatcherCache".Length));
-                }
-                catch
-                {
-                    logging.Info("Failed to restore "+file+", skipping...");
+                    Directory.Delete(contentFolder,true);
                 }
             }
-            logging.Info("Deleting the no longer needed Cache folder...");
-            Directory.Delete("C:\\KittenPatcherCache", true);
+
+            logging.Info("Moving directories from cache to the Content folder...");
+            foreach (var contentFolder in Directory.GetDirectories("ContentKittenPatcherCache"))
+            {
+                if (!contentFolder.Contains("KittenPatcher"))
+                {
+                    Directory.Move(contentFolder,"Content\\"+contentFolder.Split("\\").Last());
+                }
+            }
+
+            logging.Info("Removing the no longer needed cache folder...");
+            Directory.Delete("ContentKittenPatcherCache", true);
+
             logging.Info("Cleanup complete!");
         }
     }
