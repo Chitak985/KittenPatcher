@@ -79,55 +79,54 @@ namespace KittenPatcher
             {
                 xmls.Add(XDocument.Load(xmlFile));
             }
-
-            // Load all Patching.xml files to load patches from
-            foreach (string patchPath in Directory.GetFiles("Content\\", "Patching.xml", SearchOption.AllDirectories))
+            
+            foreach (string patchPath in Directory.GetFiles("Content\\", "Patching.xml", SearchOption.AllDirectories))                                  // Load all Patching.xml files to load patches from
             {
                 logging.Info("A Patching.xml file was found at "+patchPath+"!");
-                XDocument patchXML = XDocument.Load(patchPath);  // Load file as an XML document
+                XDocument patchXML = XDocument.Load(patchPath);                                                                                         // Load file as an XML document
                 if (patchXML == null)
                 {
-                    logging.Error("Something is VERY wrong!");  // Realisticlly shouldn't happen
+                    logging.Error("Something is VERY wrong!");                                                                                          // Realisticlly shouldn't happen
                     continue;
                 }
                 if (patchXML.Root == null)
                 {
-                    logging.Error("Patching.xml has no root node!");  // Idk how would happen but whatever
+                    logging.Error("Patching.xml has no root node!");                                                                                    // Idk how would happen but whatever
                     continue;
                 }
                 logging.Info("Found root node "+patchXML.Root.Name.ToString()+"!");
-                if (patchXML.Root.Name.ToString() == "Patch")  // Loads up the root node
+                if (patchXML.Root.Name.ToString() == "Patch")                                                                                           // Loads up the root node
                 {
-                    foreach (XElement patchItem in patchXML.Descendants("PatchItem"))
+                    foreach (XElement patchItem in patchXML.Descendants("PatchItem"))                                                                   // Iterate through all <PatchItem>s
                     {
-                        if (patchItem == null)
+                        if (patchItem == null)                                                                                                          // Make sure patchItem isn't null
                         {
                             logging.Error("PatchItem is null!");
                             continue;
                         }
-                        logging.Info("Found a <PatchItem> " + patchItem.Name.ToString() + "!");
-                        foreach (var patchFile in patchItem.Descendants("PatchFile"))
+                        logging.Info("Found a <PatchItem> " + patchItem.Name.ToString() + "!");                                                         // Confirm that a <PatchItem> was found
+                        foreach (var patchFile in patchItem.Descendants("PatchFile"))                                                                   // Iterate through all <PatchFile>s
                         {
-                            if (patchFile == null)
+                            if (patchFile == null)                                                                                                      // Make sure patchFile isn't null
                             {
                                 logging.Error("PatchFile is null!");
                                 continue;
                             }
-                            if (patchFile.Attribute("File") == null)
+                            if (patchFile.Attribute("File") == null)                                                                                    // Check if <PatchFile> has a file attribute
                             {
                                 logging.Error("PatchFile has no File attribute!");
                                 continue;
                             }
-                            XAttribute fileToPatch = patchFile.Attribute("File");
-                            logging.Info("Found a <PatchFile> " + patchFile.Name.ToString() + "!");
-                            if (File.Exists(Path.Combine("Content\\", fileToPatch.Value)))
+                            XAttribute fileToPatch = patchFile.Attribute("File");                                                                       // Set the file to be patched to a separate variable to avoid null warnings
+                            logging.Info("Found a <PatchFile> " + patchFile.Name.ToString() + "!");                                                     // Confirm that the <PatchFile> was found
+                            if (File.Exists(Path.Combine("Content\\", fileToPatch.Value)))                                                              // Check if the <PatchFile> file exists
                             {
-                                logging.Info("The file <PatchFile> specifies, " + fileToPatch.Value + ", exists!");
-                                foreach (var patchDelete in patchFile.Descendants("PatchDelete"))
+                                logging.Info("The file <PatchFile> specifies, " + fileToPatch.Value + ", exists!");                                     // Confirm that the file specified exists
+                                foreach (var patchDelete in patchFile.Descendants("PatchDelete"))                                                       // Iterate through all <PatchDelete>
                                 {
-                                    logging.Info("Found a <PatchDelete> " + patchDelete.Name.ToString() + "!");
-                                    XDocument xmlFile = XDocument.Load(Path.Combine("Content\\", fileToPatch.Value));
-                                    if (xmlFile.Descendants(patchDelete.Attribute("Name").Value) != null)
+                                    logging.Info("Found a <PatchDelete> " + patchDelete.Name.ToString() + "!");                                         // Confirm that a <PatchDelete> was found
+                                    XDocument xmlFile = XDocument.Load(Path.Combine("Content\\", fileToPatch.Value));                                   // Load specified .xml file
+                                    if (xmlFile.Descendants(patchDelete.Attribute("Name").Value) != null)                                               // Make sure Descendants isn't null and can be used
                                     {
                                         List<XElement> nodes = [.. xmlFile.Descendants(patchDelete.Attribute("Name").Value)];                           // Obtain all nodes to remove
                                         foreach (var node in nodes)                                                                                     // Iterate and remove them, this is now independent from Descendants
@@ -149,13 +148,13 @@ namespace KittenPatcher
                                             }
                                         }
                                     }
-                                    xmlFile.Save(Path.Combine("Content\\", fileToPatch.Value));
-                                    logging.Info("XML was patched and saved successfully!");
+                                    xmlFile.Save(Path.Combine("Content\\", fileToPatch.Value));                                                         // Save the .xml back to where it was loaded from
+                                    logging.Info("XML was patched and saved successfully!");                                                            // Confirm that saving succeeded.
                                 }
                             }
                             else
                             {
-                                logging.Error("Patch file not found: " + fileToPatch.Value);
+                                logging.Error("Patch file not found: " + fileToPatch.Value);                                                            // Log that file wasn't found and skip it
                             }
                         }
                     }
