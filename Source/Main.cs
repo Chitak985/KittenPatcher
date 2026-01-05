@@ -1,7 +1,6 @@
 using StarMap.API;
 using System.Reflection;
 using System.Xml.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace KittenPatcher
 {
@@ -33,6 +32,7 @@ namespace KittenPatcher
     {
         public KittenPatcherLogger logging = new KittenPatcherLogger();
         public string dllPath = Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
+
         [StarMapBeforeMain]
         public void LoadAndPatch()
         {
@@ -61,7 +61,7 @@ namespace KittenPatcher
 
             logging.Info("Creating a command line file for KittenPatcher's Initialization...");
             StreamWriter cmdFileInit = File.CreateText("Content\\KittenPatcher\\KittenPatcherInitialization.cmd");
-            cmdFileInit.Write("@echo off\necho ----- KittenPatcher Initializer -----\necho Copying Content folder to ContentKittenPatcherCache...\nxcopy \"" + dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher")) + "\" \"" + dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher")) + "KittenPatcherCache\" /I /E /-Y /Q\necho Content folder backup complete. Finishing in 5 seconds...\ntimeout /t 5 /nobreak > NUL");
+            cmdFileInit.Write("@echo off\necho ----- KittenPatcher Initializer -----\necho Copying Content folder to ContentKittenPatcherCache...\nxcopy \"" + dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher")) + "\" \"" + dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher")) + "KittenPatcherCache\" /I /E /-Y /Q\necho Content folder backup complete. Finishing in 3 seconds...\ntimeout /t 3 /nobreak > NUL");
             cmdFileInit.Close();
 
             logging.Info("Running the file...");
@@ -79,8 +79,9 @@ namespace KittenPatcher
                 xmls.Add(XDocument.Load(xmlFile));                                                                                                              // Add file to .xml file list as an XDocument
             }
 
-            foreach (string patchPath in Directory.GetFiles("Content\\", "*.xml", SearchOption.AllDirectories))                                                 // Load all .xml files to load patches from
+            foreach (string patchPath in Directory.GetFiles("Content\\", "Patching.xml", SearchOption.AllDirectories))                                          // Load all Patching.xml files to load patches from
             {
+                logging.Info("A Patching.xml file was found at " + patchPath + "!");
                 XDocument patchXML = XDocument.Load(patchPath);                                                                                                 // Load file as an XML document (XDocument)
                 if (patchXML == null)
                 {
@@ -89,12 +90,12 @@ namespace KittenPatcher
                 }
                 if (patchXML.Root == null)
                 {
-                    logging.Error(patchPath+" has no root node!");                                                                                              // Shouldn't happen but is there anyway (no root)
+                    logging.Error("Patching.xml has no root node!");                                                                                            // Shouldn't happen but is there anyway (no root)
                     continue;
                 }
-                if (patchXML.Root.Name.ToString() == "KittenPatch")                                                                                             // Loads up the root node
+                logging.Info("Found root node " + patchXML.Root.Name.ToString() + "!");
+                if (patchXML.Root.Name.ToString() == "Patch")                                                                                                   // Loads up the root node
                 {
-                    logging.Info("Found <KittenPatch> root for file "+patchPath)                                                                                // Confirm that a <KittenPatch> root was found
                     foreach (XElement patchItem in patchXML.Descendants("PatchItem"))                                                                           // Iterate through all <PatchItem>s
                     {
                         if (patchItem == null)                                                                                                                  // Make sure patchItem isn't null
@@ -155,38 +156,6 @@ namespace KittenPatcher
                                 logging.Error("Patch file not found: " + fileToPatch.Value);                                                                    // Log that file wasn't found and skip it
                             }
                         }
-                        foreach (var patchFileOp in patchItem.Descendants("PatchFileOperations"))                                                               // Iterate through all <PatchFileOperations>
-                        {
-                            logging.Info("Found a <PatchFileOperations>!");
-                            if (patchFileOp == null)                                                                                                            // Make sure patchFileOperations isn't null
-                            {
-                                logging.Error("PatchFileOperations is null!");
-                                continue;
-                            }
-                            foreach (var patchFileDisable in patchFileOp.Descendants("PatchFileDisable"))                                                       // Iterate through all <PatchFileDisable>
-                            {
-                                if (patchFileDisable == null)                                                                                                   // Make sure patchFileDisable isn't null
-                                {
-                                    logging.Error("PatchFileDisable is null!");
-                                    continue;
-                                }
-                                if (patchFileDisable.Attribute("File") == null)                                                                                 // Check if <PatchFileDisable> has a file attribute
-                                {
-                                    logging.Error("PatchFileDisable has no File attribute!");
-                                    continue;
-                                }
-                                logging.Info("Found a <PatchFileDisable>!");
-                                try
-                                {
-                                    File.Delete(patchFileDisable.Attribute("File").Value);
-                                    logging.Ingo("Disabled "+patchFileDisable.Attribute("File").Value+" successfully!");
-                                }
-                                catch
-                                {
-                                    logging.Info("Failed to disable "+patchFileDisable.Attribute("File").Value+"!");
-                                }
-                            }
-                        }
                     }
                 }
                 else
@@ -211,28 +180,33 @@ namespace KittenPatcher
                 return;
             }
 
-            logging.Info("Removing directories in the Content folder...");
-            foreach (var contentFolder in Directory.GetDirectories("Content"))
+            logging.Info("Creating a command line file for KittenPatcher's Cleanup...");
+
+            string fileContent = "@echo off\necho ----- KittenPatcher Cleanup -----\necho Waiting 5 seconds for KSA to close...\ntimeout /t 5 /nobreak > NUL\n@echo off\necho Removing patched Content...\n";
+            foreach (string dirPath in Directory.EnumerateDirectories("Content"))
             {
-                if (!contentFolder.Contains("KittenPatcher"))
+                if(!dirPath.Contains("KittenPatcher"))
                 {
-                    Directory.Delete(contentFolder, true);
+                    fileContent += "rmdir \"" + Path.GetFullPath(dirPath) + "\" /S /Q\n";
+                }
+            }
+            fileContent += "echo Restoring Content folder from ContentKittenPatcherCache...\n";
+            foreach (string dirPath in Directory.EnumerateDirectories("ContentKittenPatcherCache"))
+            {
+                if (!dirPath.Contains("KittenPatcher\\"))
+                {
+                    fileContent += "xcopy \"" + Path.GetFullPath(dirPath) + "\" \"" + Path.GetFullPath(dirPath).Replace("ContentKittenPatcherCache","Content") + "\" /I /E /Y /Q\n";
                 }
             }
 
-            logging.Info("Creating a command line file for KittenPatcher's Cleanup...");
             StreamWriter cmdFileInit = File.CreateText("Content\\KittenPatcher\\KittenPatcherCleanup.cmd");
-            cmdFileInit.Write("@echo off\necho ----- KittenPatcher Cleanup -----\necho Restoring Content folder from ContentKittenPatcherCache...\nxcopy \"" + dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher")) + "KittenPatcherCache\" \"" + dllPath.Substring(0, dllPath.IndexOf("\\KittenPatcher")) + "\" /I /E /-Y /Q\necho Content folder restoration complete. Finishing in 5 seconds...\ntimeout /t 5 /nobreak > NUL");
+            cmdFileInit.Write(fileContent+"echo Content folder restoration complete. Finishing in 3 seconds...\ntimeout /t 3 /nobreak > NUL\n@echo on");
             cmdFileInit.Close();
 
             logging.Info("Running the file...");
             System.Diagnostics.Process initFile = System.Diagnostics.Process.Start("Content\\KittenPatcher\\KittenPatcherCleanup.cmd");
-            initFile.WaitForExit();
 
-            logging.Info("Removing the no longer needed cache folder...");
-            Directory.Delete("ContentKittenPatcherCache", true);
-
-            logging.Info("Cleanup complete!");
+            logging.Info("Cleanup complete when file finishes running!");
         }
     }
 }
