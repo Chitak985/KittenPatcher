@@ -79,9 +79,8 @@ namespace KittenPatcher
                 xmls.Add(XDocument.Load(xmlFile));                                                                                                              // Add file to .xml file list as an XDocument
             }
 
-            foreach (string patchPath in Directory.GetFiles("Content\\", "Patching.xml", SearchOption.AllDirectories))                                          // Load all Patching.xml files to load patches from
+            foreach (string patchPath in Directory.GetFiles("Content\\", "*.xml", SearchOption.AllDirectories))                                                 // Load all .xml files to load patches from
             {
-                logging.Info("A Patching.xml file was found at " + patchPath + "!");
                 XDocument patchXML = XDocument.Load(patchPath);                                                                                                 // Load file as an XML document (XDocument)
                 if (patchXML == null)
                 {
@@ -90,12 +89,12 @@ namespace KittenPatcher
                 }
                 if (patchXML.Root == null)
                 {
-                    logging.Error("Patching.xml has no root node!");                                                                                            // Shouldn't happen but is there anyway (no root)
+                    logging.Error(patchPath+" has no root node!");                                                                                              // Shouldn't happen but is there anyway (no root)
                     continue;
                 }
-                logging.Info("Found root node " + patchXML.Root.Name.ToString() + "!");
-                if (patchXML.Root.Name.ToString() == "Patch")                                                                                                   // Loads up the root node
+                if (patchXML.Root.Name.ToString() == "KittenPatch")                                                                                             // Loads up the root node
                 {
+                    logging.Info("Found <KittenPatch> root for file "+patchPath)                                                                                // Confirm that a <KittenPatch> root was found
                     foreach (XElement patchItem in patchXML.Descendants("PatchItem"))                                                                           // Iterate through all <PatchItem>s
                     {
                         if (patchItem == null)                                                                                                                  // Make sure patchItem isn't null
@@ -154,6 +153,38 @@ namespace KittenPatcher
                             else
                             {
                                 logging.Error("Patch file not found: " + fileToPatch.Value);                                                                    // Log that file wasn't found and skip it
+                            }
+                        }
+                        foreach (var patchFileOp in patchItem.Descendants("PatchFileOperations"))                                                               // Iterate through all <PatchFileOperations>
+                        {
+                            logging.Info("Found a <PatchFileOperations>!");
+                            if (patchFileOp == null)                                                                                                            // Make sure patchFileOperations isn't null
+                            {
+                                logging.Error("PatchFileOperations is null!");
+                                continue;
+                            }
+                            foreach (var patchFileDisable in patchFileOp.Descendants("PatchFileDisable"))                                                       // Iterate through all <PatchFileDisable>
+                            {
+                                if (patchFileDisable == null)                                                                                                   // Make sure patchFileDisable isn't null
+                                {
+                                    logging.Error("PatchFileDisable is null!");
+                                    continue;
+                                }
+                                if (patchFileDisable.Attribute("File") == null)                                                                                 // Check if <PatchFileDisable> has a file attribute
+                                {
+                                    logging.Error("PatchFileDisable has no File attribute!");
+                                    continue;
+                                }
+                                logging.Info("Found a <PatchFileDisable>!");
+                                try
+                                {
+                                    File.Delete(patchFileDisable.Attribute("File").Value);
+                                    logging.Ingo("Disabled "+patchFileDisable.Attribute("File").Value+" successfully!");
+                                }
+                                catch
+                                {
+                                    logging.Info("Failed to disable "+patchFileDisable.Attribute("File").Value+"!");
+                                }
                             }
                         }
                     }
