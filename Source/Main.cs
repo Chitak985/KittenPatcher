@@ -116,8 +116,18 @@ namespace KittenPatcher
                                 logging.Error("PatchFile has no File attribute!");
                                 continue;
                             }
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.                                                          // Disabling warning because the value is checked to be non-null before this
                             XAttribute fileToPatch = patchFile.Attribute("File");                                                                               // Set the file to be patched to a separate variable to avoid null warnings
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
                             logging.Info("Found a <PatchFile> " + patchFile.Name.ToString() + "!");                                                             // Confirm that the <PatchFile> was found
+                            try
+                            {
+                                File.Exists(Path.Combine("Content\\", fileToPatch.Value));
+                            }
+                            catch
+                            {
+                                logging.Error("The path provided in <PatchFileOperations> is invalid!");
+                            }
                             if (File.Exists(Path.Combine("Content\\", fileToPatch.Value)))                                                                      // Check if the <PatchFile> file exists
                             {
                                 logging.Info("The file <PatchFile> specifies, " + fileToPatch.Value + ", exists!");                                             // Confirm that the file specified exists
@@ -168,15 +178,25 @@ namespace KittenPatcher
                                 logging.Error("PatchFileOperations has no File attribute!");
                                 continue;
                             }
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.                                                          // Disabling warning because the value is checked to be non-null before this
                             XAttribute fileToPatch = patchFile.Attribute("File");                                                                               // Set the file to be patched to a separate variable to avoid null warnings
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
                             logging.Info("Found a <PatchFileOperations>!");                                                                                     // Confirm that the <PatchFileOperations> was found
+                            try
+                            {
+                                File.Exists(Path.Combine("Content\\", fileToPatch.Value));
+                            }
+                            catch
+                            {
+                                logging.Error("The path provided in <PatchFileOperations> is invalid!");
+                            }
                             if (File.Exists(Path.Combine("Content\\", fileToPatch.Value)))                                                                      // Check if the <PatchFileOperations> file exists
                             {
                                 logging.Info("The file <PatchFileOperations> specifies, " + fileToPatch.Value + ", exists!");                                   // Confirm that the file specified exists
                                 foreach (var patchDelete in patchFile.Descendants("PatchFileDisable"))                                                          // Iterate through all <PatchFileDisable>
                                 {
                                     logging.Info("Found a <PatchFileDisable> " + patchDelete.Name.ToString() + "!");                                            // Confirm that a <PatchFileDisable> was found
-                                    File.Delete(fileToPatch.Value);                                                                                             // Delete file to disable it
+                                    File.Delete(Path.Combine("Content\\", fileToPatch.Value));                                                                                             // Delete file to disable it
                                     logging.Info("File was disabled (deleted) successfully!");                                                                  // Confirm that disabling succeeded
                                 }
                             }
@@ -214,7 +234,7 @@ namespace KittenPatcher
             string fileContent = "@echo off\necho ----- KittenPatcher Cleanup -----\necho Waiting 5 seconds for KSA to close...\ntimeout /t 5 /nobreak > NUL\n@echo off\necho Removing patched Content...\n";
             foreach (string dirPath in Directory.EnumerateDirectories("Content"))
             {
-                if(!dirPath.Contains("KittenPatcher"))
+                if (!dirPath.Contains("KittenPatcher"))
                 {
                     fileContent += "rmdir \"" + Path.GetFullPath(dirPath) + "\" /S /Q\n";
                 }
@@ -224,12 +244,12 @@ namespace KittenPatcher
             {
                 if (!dirPath.Contains("KittenPatcher\\"))
                 {
-                    fileContent += "xcopy \"" + Path.GetFullPath(dirPath) + "\" \"" + Path.GetFullPath(dirPath).Replace("ContentKittenPatcherCache","Content") + "\" /I /E /Y /Q\n";
+                    fileContent += "xcopy \"" + Path.GetFullPath(dirPath) + "\" \"" + Path.GetFullPath(dirPath).Replace("ContentKittenPatcherCache", "Content") + "\" /I /E /Y /Q\n";
                 }
             }
 
             StreamWriter cmdFileInit = File.CreateText("Content\\KittenPatcher\\KittenPatcherCleanup.cmd");
-            cmdFileInit.Write(fileContent+"echo Content folder restoration complete. Finishing in 3 seconds...\ntimeout /t 3 /nobreak > NUL\n@echo on");
+            cmdFileInit.Write(fileContent + "echo Content folder restoration complete. Finishing in 3 seconds...\ntimeout /t 3 /nobreak > NUL\n@echo on");
             cmdFileInit.Close();
 
             logging.Info("Running the file...");
