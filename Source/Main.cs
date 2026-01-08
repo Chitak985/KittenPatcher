@@ -156,6 +156,35 @@ namespace KittenPatcher
                                 logging.Error("Patch file not found: " + fileToPatch.Value);                                                                    // Log that file wasn't found and skip it
                             }
                         }
+                        foreach (var patchFile in patchItem.Descendants("PatchFileOperations"))                                                                 // Iterate through all <PatchFileOperations>s
+                        {
+                            if (patchFile == null)                                                                                                              // Make sure patchFile isn't null
+                            {
+                                logging.Error("PatchFileOperations is null!");
+                                continue;
+                            }
+                            if (patchFile.Attribute("File") == null)                                                                                            // Check if <PatchFileOperations> has a file attribute
+                            {
+                                logging.Error("PatchFileOperations has no File attribute!");
+                                continue;
+                            }
+                            XAttribute fileToPatch = patchFile.Attribute("File");                                                                               // Set the file to be patched to a separate variable to avoid null warnings
+                            logging.Info("Found a <PatchFileOperations>!");                                                                                     // Confirm that the <PatchFileOperations> was found
+                            if (File.Exists(Path.Combine("Content\\", fileToPatch.Value)))                                                                      // Check if the <PatchFileOperations> file exists
+                            {
+                                logging.Info("The file <PatchFileOperations> specifies, " + fileToPatch.Value + ", exists!");                                   // Confirm that the file specified exists
+                                foreach (var patchDelete in patchFile.Descendants("PatchFileDisable"))                                                          // Iterate through all <PatchFileDisable>
+                                {
+                                    logging.Info("Found a <PatchFileDisable> " + patchDelete.Name.ToString() + "!");                                            // Confirm that a <PatchFileDisable> was found
+                                    File.Delete(fileToPatch.Value);                                                                                             // Delete file to disable it
+                                    logging.Info("File was disabled (deleted) successfully!");                                                                  // Confirm that disabling succeeded
+                                }
+                            }
+                            else
+                            {
+                                logging.Error("Patch file operations file not found: " + fileToPatch.Value);                                                    // Log that file wasn't found and skip it
+                            }
+                        }
                     }
                 }
                 else
